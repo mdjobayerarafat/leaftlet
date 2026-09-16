@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # Leaflet production deploy — builds the Docker image locally, ships it to the
-# Azure VM over SSH, and (re)starts the container behind nginx.
+# Azure VM over SSH, and (re)starts the container on host port 3001.
 #
 # Usage:
 #   ./deploy.sh              # build + ship + run
@@ -9,17 +9,20 @@
 #   ./deploy.sh --no-build   # reuse the previously built image tarball
 #
 # Required env (reads .env.local automatically, or export them first):
-#   AZURE_HOST   — VM address (default 20.196.137.40)
+#   AZURE_HOST   — VM address (default 40.82.129.6; port 3000 is already in
+#                  use there by another site, so Leaflet runs on 3001)
 #   AZURE_USER   — SSH user (default azureuser)
 #   SSH_KEY      — path to the private key (default ~/.ssh/id_rsa)
+#   APP_PORT     — host port for the Leaflet container (default 3001)
 set -euo pipefail
 
 cd "$(dirname "$0")"
 
 # ---- configuration ----------------------------------------------------------
-AZURE_HOST="${AZURE_HOST:-20.196.137.40}"
+AZURE_HOST="${AZURE_HOST:-40.82.129.6}"
 AZURE_USER="${AZURE_USER:-azureuser}"
 SSH_KEY="${SSH_KEY:-$HOME/.ssh/id_rsa}"
+APP_PORT="${APP_PORT:-3001}"
 APP_DIR="/opt/leaflet"
 IMAGE_NAME="leaflet"
 IMAGE_TAG="${IMAGE_TAG:-latest}"
@@ -86,7 +89,7 @@ sudo docker rm leaflet >/dev/null 2>&1 || true
 sudo docker run -d \
   --name leaflet \
   --restart unless-stopped \
-  -p 127.0.0.1:3000:3000 \
+  -p ${APP_PORT}:3000 \
   --env-file ${APP_DIR}/.env \
   ${IMAGE_NAME}:${IMAGE_TAG}
 sudo docker image prune -f >/dev/null
@@ -103,7 +106,8 @@ set -euo pipefail
 if [ -d /etc/nginx/sites-enabled ]; then
   sudo mv /tmp/leaflet.conf /etc/nginx/sites-available/leaflet.conf
   sudo ln -sf /etc/nginx/sites-available/leaflet.conf /etc/nginx/sites-enabled/leaflet.conf
-  sudo rm -f /etc/nginx/sites-enabled/default
+  # NOTE: do NOT remove /etc/nginx/sites-enabled/default here — this VM
+  # already hosts another site and our config only listens on 3001.
 else
   sudo mv /tmp/leaflet.conf /etc/nginx/conf.d/leaflet.conf
 fi
@@ -112,5 +116,5 @@ sudo systemctl reload nginx
 REMOTE
 fi
 
-log "Deployed. App: http://${AZURE_HOST} (via nginx) — container listens on 127.0.0.1:3000"
-log "Sanity check: curl -s -o /dev/null -w '%{http_code}' http://${AZURE_HOST}/api/health || curl -sI http://${AZURE_HOST} | head -1"
+log "Deployed. App: http://${AZURE_HOST}:${APP_PORT} — container's :3000 is published on host port ${APP_PORT}"
+log "Sanity check: curl -s -o /dev/null -w '%{http_code}' http://${AZURE_HOST}:${APP_PORT}/"

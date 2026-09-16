@@ -1,0 +1,450 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+/* Touch devices (no reliable :hover) — used to keep card actions visible. */
+@custom-variant touch (@media (hover: none));
+
+/* ---------- Light (default): retro library — cream, ink, tangerine ---------- */
+:root {
+  --background: #faf3e3;
+  --foreground: #1c1710;
+  --card: #fdf6e9;
+  --card-foreground: #1c1710;
+  --muted: #f1e6cc;
+  --muted-foreground: #6e6250;
+  --border: #1c1710;
+  --input: #fffbf0;
+  --primary: #f05a24;
+  --primary-foreground: #fff8ec;
+  --primary-soft: #fbdcc8;
+  --secondary: #f7d046;
+  --secondary-foreground: #1c1710;
+  --accent: #f7d046;
+  --accent-foreground: #1c1710;
+  --danger: #c23a1d;
+  --ring: #f05a24;
+  --star: #f7b32b;
+}
+
+/* ---------- Sepia: warm paper ---------- */
+.sepia {
+  --background: #f3ead6;
+  --foreground: #43351f;
+  --card: #faf3e0;
+  --card-foreground: #43351f;
+  --muted: #ece0c4;
+  --muted-foreground: #8a7a58;
+  --border: #5c4b2a;
+  --input: #faf5e8;
+  --primary: #c94f1f;
+  --primary-foreground: #fff8ec;
+  --primary-soft: #f3ddc2;
+  --secondary: #ecc94b;
+  --secondary-foreground: #43351f;
+  --accent: #ecc94b;
+  --accent-foreground: #43351f;
+  --danger: #a83b2a;
+  --ring: #c94f1f;
+  --star: #d99a26;
+}
+
+/* ---------- Dark: comfortable night reading ---------- */
+.dark {
+  --background: #171310;
+  --foreground: #efe7d6;
+  --card: #211b15;
+  --card-foreground: #efe7d6;
+  --muted: #2c241c;
+  --muted-foreground: #a89a83;
+  --border: #efe7d6;
+  --input: #262019;
+  --primary: #ff6a35;
+  --primary-foreground: #1c0d05;
+  --primary-soft: #3a2418;
+  --secondary: #ffd23f;
+  --secondary-foreground: #201803;
+  --accent: #ffd23f;
+  --accent-foreground: #201803;
+  --danger: #e07b6a;
+  --ring: #ff6a35;
+  --star: #f7b32b;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-soft: var(--primary-soft);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-danger: var(--danger);
+  --color-ring: var(--ring);
+  --color-star: var(--star);
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-lora), Georgia, serif;
+  --font-mono: var(--font-space-mono), ui-monospace, "Courier New", monospace;
+  --radius-lg: 2px;
+  --radius-xl: 4px;
+  --radius-2xl: 6px;
+}
+
+html {
+  color-scheme: light;
+}
+html.dark {
+  color-scheme: dark;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Respect reduced-motion preferences. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Consistent focus states across the app */
+:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+/* ------------------------------------------------------------------ */
+/* Retro library building blocks                                       */
+/* ------------------------------------------------------------------ */
+
+/* Section headings ("Categories", "Popular Books") in mono caps. */
+.heading-mono {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--foreground);
+}
+
+/* Hard offset shadow: card sits on an ink block, like print. */
+.shadow-pop {
+  box-shadow: 3px 3px 0 0 var(--border);
+}
+.shadow-pop-sm {
+  box-shadow: 2px 2px 0 0 var(--border);
+}
+.shadow-pop-lg {
+  box-shadow: 5px 5px 0 0 var(--border);
+}
+
+/* Sunken field used by inputs inside tinted bands. */
+.retro-field {
+  background: var(--input);
+  border: 2px solid var(--border);
+  border-radius: 2px;
+}
+
+/* Interactive lift for bordered tiles. */
+.retro-lift {
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+.retro-lift:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: 4px 4px 0 0 var(--border);
+}
+.retro-lift:active {
+  transform: translate(1px, 1px);
+  box-shadow: 1px 1px 0 0 var(--border);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .retro-lift,
+  .retro-lift:hover,
+  .retro-lift:active {
+    transform: none;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Mobile ergonomics                                                   */
+/* ------------------------------------------------------------------ */
+
+/* Full-height surfaces respect notches/home bars (reader, sheets). */
+.pb-safe {
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 0.75rem);
+}
+
+/* Prevent horizontal page pan while swiping between PDF pages. */
+body {
+  overscroll-behavior-x: none;
+}
+
+@media (max-width: 640px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
+/* Slim scrollbars for reader panels */
+.thin-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+.thin-scrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.thin-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 9999px;
+}
+
+/* PDF.js text layer: transparent selectable text above the canvas */
+.pdfTextLayer {
+  opacity: 0.2;
+}
+.pdfTextLayer ::selection {
+  background: rgba(59, 130, 246, 0.35);
+}
+.pdfTextLayer span {
+  color: transparent;
+  position: absolute;
+  white-space: pre;
+  transform-origin: 0% 0%;
+  line-height: 1;
+}
+
+/* Highlights rendered over the page */
+.highlight-rect {
+  position: absolute;
+  mix-blend-mode: multiply;
+  border-radius: 2px;
+  pointer-events: auto;
+}
+.dark .highlight-rect {
+  mix-blend-mode: screen;
+  opacity: 0.55;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.toast-item {
+  animation: toast-in 160ms ease-out;
+}
+
+/* ------------------------------------------------------------------ */
+/* Theme-switch animation                                              */
+/* ------------------------------------------------------------------ */
+
+/* When switching themes the root gets .theme-transition for one frame;
+   every custom property then cross-fades instead of snapping. */
+.theme-transition,
+.theme-transition * {
+  transition:
+    background-color 350ms ease,
+    color 350ms ease,
+    border-color 350ms ease,
+    fill 350ms ease,
+    stroke 350ms ease,
+    box-shadow 350ms ease !important;
+  transition-delay: 0 !important;
+}
+
+/* Circular reveal: a tinted wash expands from the toggle when the
+   View Transitions API is available (Chrome/Edge/Safari 18+). */
+@keyframes theme-wash {
+  from {
+    opacity: 0;
+    transform: scale(0);
+  }
+  to {
+    opacity: 0.18;
+    transform: scale(1);
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Motion accents (retro-playful, sparing)                             */
+/* ------------------------------------------------------------------ */
+
+/* Logo flame flickers briefly on hover. */
+@keyframes flame-flicker {
+  0%,
+  100% {
+    transform: rotate(0deg) scale(1);
+  }
+  25% {
+    transform: rotate(-6deg) scale(1.06);
+  }
+  55% {
+    transform: rotate(5deg) scale(0.97);
+  }
+  80% {
+    transform: rotate(-3deg) scale(1.03);
+  }
+}
+.flame:hover .flame-emoji {
+  animation: flame-flicker 500ms ease-in-out;
+  display: inline-block;
+}
+
+/* Nav icons nudge on hover. */
+@keyframes icon-nudge {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(-3px);
+  }
+}
+.nav-nudge:hover .lucide {
+  animation: icon-nudge 320ms ease;
+}
+
+/* Theme icon does a small spin when toggled. */
+@keyframes icon-spin {
+  from {
+    transform: rotate(-120deg) scale(0.8);
+    opacity: 0.4;
+  }
+  to {
+    transform: rotate(0deg) scale(1);
+    opacity: 1;
+  }
+}
+.icon-swap {
+  animation: icon-spin 320ms ease-out;
+}
+
+/* Star pop when a rating row mounts. */
+@keyframes star-pop {
+  0% {
+    transform: scale(0.4);
+    opacity: 0;
+  }
+  70% {
+    transform: scale(1.15);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+.star-pop {
+  animation: star-pop 300ms ease-out backwards;
+}
+.star-pop:nth-child(2) {
+  animation-delay: 40ms;
+}
+.star-pop:nth-child(3) {
+  animation-delay: 80ms;
+}
+.star-pop:nth-child(4) {
+  animation-delay: 120ms;
+}
+.star-pop:nth-child(5) {
+  animation-delay: 160ms;
+}
+
+/* Cards breathe in on first mount of a section. */
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Route change: the new page's content rises softly into place. */
+.page-transition {
+  animation: rise-in 300ms ease-out;
+}
+
+.rise-in {
+  animation: rise-in 350ms ease-out backwards;
+}
+.rise-in:nth-child(2) {
+  animation-delay: 50ms;
+}
+.rise-in:nth-child(3) {
+  animation-delay: 100ms;
+}
+.rise-in:nth-child(4) {
+  animation-delay: 150ms;
+}
+.rise-in:nth-child(5) {
+  animation-delay: 200ms;
+}
+.rise-in:nth-child(6) {
+  animation-delay: 250ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flame:hover .flame-emoji,
+  .nav-nudge:hover .lucide,
+  .icon-swap,
+  .star-pop,
+  .page-transition,
+  .rise-in {
+    animation: none !important;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Skeleton shimmer                                                    */
+/* ------------------------------------------------------------------ */
+
+@keyframes shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+/* A soft light band sweeps across the muted placeholder. */
+.shimmer {
+  background-image: linear-gradient(
+    100deg,
+    transparent 35%,
+    color-mix(in srgb, var(--card) 72%, transparent) 50%,
+    transparent 65%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.6s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shimmer {
+    animation: none !important;
+  }
+}

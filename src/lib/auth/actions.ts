@@ -1,7 +1,7 @@
 "use server";
 
 import { ID } from "node-appwrite";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { createAdminClient, createEmailPasswordSessionSecret } from "@/lib/appwrite/server";
 import { SESSION_COOKIE } from "@/lib/auth/session-constants";
@@ -12,10 +12,18 @@ const SESSION_TTL_SECONDS = 60 * 60 * 24 * 30; // 30 days
 
 async function setSessionCookie(secret: string) {
   const cookieStore = await cookies();
+  // `secure` must match how the site is actually served: browsers silently
+  // drop Secure cookies over plain HTTP, which would log everyone out on
+  // HTTP-only deployments (e.g. Coolify on http://….sslip.io). Trust the
+  // proxy's forwarded protocol first, then the configured site URL.
+  const headerList = await headers();
+  const forwardedProto = headerList.get("x-forwarded-proto")?.split(",")[0]?.trim();
+  const siteProto = process.env.NEXT_PUBLIC_SITE_URL?.startsWith("https") ? "https" : undefined;
+  const isHttps = (forwardedProto ?? siteProto) === "https";
   cookieStore.set(SESSION_COOKIE, secret, {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    secure: isHttps,
     path: "/",
     maxAge: SESSION_TTL_SECONDS,
   });

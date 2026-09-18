@@ -446,6 +446,18 @@ export function EbookReader({ book, authed, initialPage, initialProgressPage, pr
   /* ---------------------------------- Render ---------------------------------- */
   const progress = numPages ? progressPercent(currentPage, numPages) : 0;
 
+  // Books require sign-in; when the session is missing (e.g. the login cookie
+  // was dropped), ask for sign-in instead of surfacing the PDF fetch error.
+  if (!authed) {
+    return (
+      <div className="flex min-h-svh flex-col items-center justify-center gap-4 p-8 text-center">
+        <p className="text-lg font-semibold text-foreground">Sign in to read this book</p>
+        <p className="max-w-md text-sm text-muted-foreground">Your session is not active on this device. Sign in to open the reader.</p>
+        <Link href="/login" className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">Sign in</Link>
+      </div>
+    );
+  }
+
   if (loadError) {
     return (
       <div className="flex min-h-svh flex-col items-center justify-center gap-4 p-8 text-center">

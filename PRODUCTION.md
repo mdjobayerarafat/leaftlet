@@ -1,4 +1,4 @@
-# Production deployment — Azure VM (40.82.129.6) + Docker
+# Production deployment — Coolify on 40.82.129.6, port 3001
 
 Target VM: `40.82.129.6`. **Port 3000 is already used by another site on that
 VM**, so Leaflet runs on **port 3001**. Appwrite also runs on this same VM at
@@ -8,110 +8,98 @@ VM**, so Leaflet runs on **port 3001**. Appwrite also runs on this same VM at
 
 | File | Purpose |
 | --- | --- |
+| `compose.yaml` | Coolify-ready compose: host **3001 → container 3000**, build args, healthcheck |
 | `Dockerfile` | Multi-stage build → small standalone image, runs as non-root |
-| `.dockerignore` | Keeps secrets (`/.env.local`) and junk out of the image |
-| `deploy.sh` | One command: build → ship over SSH → run container on host port 3001 |
-| `nginx/leaflet.conf` | OPTIONAL nginx reverse proxy on port 3001 (does not touch port 80) |
+| `src/app/api/health/route.ts` | `GET /api/health` liveness endpoint for Coolify health checks |
+| `deploy.sh` | Alternative: SSH-based deploy (build locally, ship to the VM) |
+| `nginx/leaflet.conf` | Optional nginx reverse proxy (not needed with Coolify) |
 
-## 1. One-time VM preparation
+## Deploying with Coolify (recommended)
 
-SSH into the VM once (`ssh azureuser@40.82.129.6`) and install Docker if missing:
+**1. Push this repo to a git remote** (GitHub/GitLab) — Coolify builds from
+source. Make sure `compose.yaml` is committed.
+
+**2. In Coolify (at `http://40.82.129.6:8000` or wherever it's installed):**
+
+- **New Resource → Docker Compose** (or "Dockerfile Empty" with
+  `Dockerfile` if you prefer a single-container resource)
+- Point it at this repo + branch, and select **`compose.yaml`** as the compose
+  file
+- **Domain:** enter `http://40.82.129.6:3001` — this matters! Coolify routes
+  domains through its internal proxy; if you don't set a domain, the app is
+  only reachable on the published compose port. Alternatively leave the domain
+  empty and access it via the raw published port.
+- **Port:** the container listens on **3000** (already correct in
+  `compose.yaml`); the host side is fixed at **3001** so it never collides
+  with the other site on 3000.
+
+**3. Environment Variables** (Coolify → your app → Environment Variables):
+
+| Variable | Value |
+| --- | --- |
+| `NEXT_PUBLIC_APPWRITE_ENDPOINT` | `http://40.82.129.6/v1` |
+| `NEXT_PUBLIC_APPWRITE_PROJECT_ID` | your Appwrite project id |
+| `NEXT_PUBLIC_APPWRITE_DATABASE_ID` | `main` (or yours) |
+| `APPWRITE_API_KEY` | server-only secret |
+| `OPENROUTER_API_KEY` | optional, for AI features |
+
+`NEXT_PUBLIC_*` values are **baked at build time** — after changing any of
+them, hit **Redeploy** so the build picks them up. Server-only secrets
+(`APPWRITE_API_KEY`, `OPENROUTER_API_KEY`) are read at runtime.
+
+**4. Health check:** Coolify can use `GET /api/health` (already wired as the
+compose `healthcheck`; set it in Coolify's health-check dialog too). The
+container returns `{"status":"ok"}` when live.
+
+**5. Deploy.** Coolify builds the image on the VM and starts the container.
+Re-deploys are just **Redeploy** after a new push.
+
+### If you use Coolify's proxy
+
+Coolify (Traefik) routes by domain. For plain-IP hosting it's simplest to rely
+on the published compose port (`3001`) rather than the proxy: leave the
+domain empty, or set it to `http://40.82.129.6:3001` as noted above. If you
+later add a real domain, set the domain in Coolify and Coolify terminates
+HTTP(S) for you — no nginx needed, and the site on port 3000 stays untouched.
+
+### Firewall
+
+Open inbound **TCP 3001** in the Azure NSG (and any host firewall). Leave
+port 3000 alone — that's the other site's.
+
+## Alternative: script deploys (no Coolify)
+
+Two legacy paths are kept in the repo:
+
+- `vps-deploy.sh` (run ON the VM): Docker if present, else bare Node + systemd.
+  If you removed it, the equivalent is: upload the project incl. `.env.local`,
+  then `docker compose up -d --build` from this folder — the compose file does
+  the same thing.
+- `deploy.sh` (SSH from your machine): builds locally, ships the image over
+  SSH, runs the container on `0.0.0.0:3001`.
+
+## Verify
 
 ```bash
-curl -fsSL https://get.docker.com | sudo sh
-sudo usermod -aG docker $USER      # re-login after this
+curl -I http://40.82.129.6:3001/                 # app
+curl -s http://40.82.129.6:3001/api/health       # {"status":"ok",...}
+curl -I http://40.82.129.6:3000/                 # confirm the other site still works
 ```
 
-Also make sure the Azure NSG / firewall allows inbound **TCP 3001** (port 80
-belongs to the other site — leave it alone).
-
-## 2. Deploy
-
-From the project root on your machine:
-
-```bash
-./deploy.sh            # build + ship + run on http://40.82.129.6:3001
-```
-
-The script reads `.env.local` automatically. It:
-
-1. Bakes `NEXT_PUBLIC_*` vars into the build (they are public by design)
-2. Saves the image to a gzip tarball and `scp`s it to the VM
-3. Copies `.env.local` to `/opt/leaflet/.env` on the VM (secrets stay server-side)
-4. Restarts a container named `leaflet`, publishing the container's :3000 on
-   the host's **0.0.0.0:3001** — direct Docker, no nginx in the path, so the
-   existing site on port 3000 is untouched
-
-Options: `--no-build` (reuse last image), `APP_PORT=... ./deploy.sh` to change
-the host port, `AZURE_USER=... SSH_KEY=... ./deploy.sh` to override SSH settings.
-
-### Optional: nginx in front (instead of direct Docker)
-
-If you'd rather have nginx serve port 3001 (gzip, 320MB upload limit, caching),
-use `deploy.sh --nginx` **with a private container bind** — nginx and Docker
-cannot both bind 3001:
-
-```bash
-APP_PORT=127.0.0.1:3001 ./deploy.sh --nginx
-```
-
-The bundled `nginx/leaflet.conf` listens on **3001 only** and never touches
-port 80 or 3000, so installing it cannot disrupt the other site.
-
-## 3. Environment variables
-
-**Baked at build time** (safe to be public):
-- `NEXT_PUBLIC_APPWRITE_ENDPOINT` (e.g. `http://40.82.129.6/v1`)
-- `NEXT_PUBLIC_APPWRITE_PROJECT_ID`
-- `NEXT_PUBLIC_APPWRITE_DATABASE_ID`
-
-**Runtime only** (in `/opt/leaflet/.env` on the VM — never in the image):
-- `APPWRITE_API_KEY`
-- `OPENROUTER_API_KEY`, `OPENROUTER_MODEL`
-
-## 4. Verify
-
-```bash
-curl -I http://40.82.129.6:3001/                 # Docker → app
-curl -s http://40.82.129.6:3001/books -o /dev/null -w "%{http_code}\n"
-ssh azureuser@40.82.129.6 'sudo docker logs -f leaflet'
-```
-
-Also confirm the other site still works: `curl -I http://40.82.129.6:3000/`.
-
-## 5. Common issues
+## Common issues
 
 | Symptom | Fix |
 | --- | --- |
 | Connection times out on 3001 | NSG not open: add an inbound allow rule for TCP 3001 |
-| `port is already allocated` on deploy | Something else took 3001 — check `sudo ss -tlnp \| grep 3001`, or deploy with `APP_PORT=3002` |
-| Container running but page won't load | `sudo docker ps`, then `sudo docker logs leaflet` |
-| Uploads >100MB fail | Direct Docker has no body-size limit; if you use the optional nginx path, `client_max_body_size` is already 320M |
-| Covers 404 after deploy | Old records with URL-shaped file ids are handled by `fileIdOf()`; re-save the book in admin if one was created before that fix |
-| AI features error 503 | `OPENROUTER_API_KEY` missing in `/opt/leaflet/.env` — add it and `sudo docker restart leaflet` |
-| Appwrite unreachable from container | Appwrite runs on the same VM — the app should reach it via `http://40.82.129.6/v1`; check the VM's local firewall (ufw/iptables) if it fails |
+| Coolify shows "healthy" but the page won't load from outside | The proxy/domain isn't set — use the published port `3001`, or set the domain in Coolify |
+| Build fails with missing NEXT_PUBLIC_* | The env vars aren't set in Coolify — add them, then Redeploy |
+| Covers/preview 404 after deploy | Old records with URL-shaped file ids are handled by `fileIdOf()`; re-save the book in admin |
+| AI features error 503 | `OPENROUTER_API_KEY` missing — add it in Coolify env and Redeploy |
+| CORS errors in the browser | Add `http://40.82.129.6:3001` as a Web platform in the Appwrite console |
 
-## 6. Updates
-
-Push new code → run `./deploy.sh` again. The image is rebuilt, shipped, and the container is replaced with `--restart unless-stopped`, so reboots keep the app up.
-
-## 7. HTTPS (recommended next step)
+## HTTPS (recommended next step)
 
 TLS requires a domain — plain IPs can't get certificates. Point a domain at
-`40.82.129.6`, then on the VM:
-
-```bash
-sudo apt install -y certbot python3-certbot-nginx
-```
-
-- **Optional nginx setup:** add `server_name yourdomain.com;` to
-  `/etc/nginx/sites-available/leaflet.conf`, then run
-  `sudo certbot --nginx -d yourdomain.com`. Certbot adds a 443 server block
-  that proxies to the app and auto-renews. It only touches server blocks
-  matching your domain, so the site on port 3000 is unaffected.
-- **Direct Docker setup:** create a small nginx server block on 443 that
-  proxies to `127.0.0.1:3001` (rebind the container privately as shown in
-  section 2), and obtain the certificate with
-  `sudo certbot certonly --webroot -w /var/www/html -d yourdomain.com` after
-  adding a temporary port-80 challenge block with your domain's server_name
-  (distinct `server_name` values coexist safely on port 80).
+`40.82.129.6`, set it as the app's domain in Coolify, and Coolify obtains and
+renews certificates automatically (Let's Encrypt) through its proxy. The
+existing site on port 3000 is unaffected.

@@ -1,0 +1,27 @@
+# Coolify-ready Docker Compose for Leaflet.
+#
+# Host port 3001 → container port 3000. Port 3000 on the host is already used
+# by another site — only change the LEFT side of the ports mapping if needed.
+#
+# NEXT_PUBLIC_* values are baked into the build. They are interpolated from
+# environment variables — set them in Coolify → Environment Variables (or
+# export them before running `docker compose up` locally).
+
+services:
+  leaflet:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_APPWRITE_ENDPOINT: ${NEXT_PUBLIC_APPWRITE_ENDPOINT:-http://40.82.129.6/v1}
+        NEXT_PUBLIC_APPWRITE_PROJECT_ID: ${NEXT_PUBLIC_APPWRITE_PROJECT_ID:?Set NEXT_PUBLIC_APPWRITE_PROJECT_ID in the environment}
+        NEXT_PUBLIC_APPWRITE_DATABASE_ID: ${NEXT_PUBLIC_APPWRITE_DATABASE_ID:-main}
+    ports:
+      - "3001:3000"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s

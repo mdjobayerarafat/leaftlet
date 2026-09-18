@@ -1,0 +1,25 @@
+# Nixpacks configuration (used by Coolify's default "Nixpacks" build pack).
+#
+# This project builds with output:"standalone" (next.config.ts), so the server
+# must be started with `node .next/standalone/server.js` — `next start` does
+# not work with standalone output. The build also pins Node 22; Nixpacks'
+# default Node 18 is EOL and rejected by Next.js 16.
+#
+# Alternative: switch the Coolify Build Pack to "Dockerfile" — the repo's
+# Dockerfile already does all of this correctly and needs no config here.
+
+[variables]
+NIXPACKS_NODE_VERSION = "22"
+
+[phases.setup]
+nixPkgs = ["nodejs_22"]
+
+# `npm ci` runs automatically in Nixpacks' install phase.
+[phases.build]
+cmds = [
+  "npm run build",
+  "cp -r public .next/standalone/public && cp -r .next/static .next/standalone/.next/static",
+]
+
+[start]
+cmd = "node .next/standalone/server.js"

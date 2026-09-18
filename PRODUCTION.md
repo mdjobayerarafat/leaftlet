@@ -9,10 +9,22 @@ VM**, so Leaflet runs on **port 3001**. Appwrite also runs on this same VM at
 | File | Purpose |
 | --- | --- |
 | `compose.yaml` | Coolify-ready compose: host **3001 → container 3000**, build args, healthcheck |
+| `nixpacks.toml` | Makes Coolify's **Nixpacks** build pack work: pins Node 22, assembles the standalone server, starts `server.js` |
 | `Dockerfile` | Multi-stage build → small standalone image, runs as non-root |
 | `src/app/api/health/route.ts` | `GET /api/health` liveness endpoint for Coolify health checks |
 | `deploy.sh` | Alternative: SSH-based deploy (build locally, ship to the VM) |
 | `nginx/leaflet.conf` | Optional nginx reverse proxy (not needed with Coolify) |
+
+## Coolify build pack: Dockerfile or Nixpacks?
+
+- **Dockerfile** (preferred): set Build Pack to "Dockerfile" — the repo's
+  `Dockerfile` handles everything (Node 22, standalone output, non-root).
+- **Nixpacks** (Coolify's default): also works out of the box thanks to
+  `nixpacks.toml`. Without it, Nixpacks builds with Node 18 (EOL) and fails —
+  Next.js 16 requires ≥ 20.9, and `next start` can't serve standalone output.
+
+Either way, mark the `NEXT_PUBLIC_*` variables as **build-time variables** in
+Coolify so they get baked into the client bundle.
 
 ## Deploying with Coolify (recommended)
 
